@@ -326,7 +326,8 @@ Process {
             Write-Host 'Sync to backup destination failed' -ForegroundColor Red
             Read-Host | Out-Null
             Write-Host "Opening FreeFileSync for manual resolution" -ForegroundColor DarkGray
-            Free-File-Sync -JustOpenApp
+            # consider figuring out how to (if possible) have it open with src & dest pre-filled in
+            Free-File-Sync -Source $SourcePath -Destination $BackupPath -SyncType Update -JustOpenApp
             Maybe-Exit
             # this needs to be 'exit' instead of 'return' so the entire script stops and the END block doesn't run
         }
@@ -342,7 +343,7 @@ End {
         Write-Host 'Sync to final destination failed' -ForegroundColor Red
         Read-Host | Out-Null
         Write-Host "Opening FreeFileSync for manual resolution" -ForegroundColor DarkGray
-        Free-File-Sync -JustOpenApp
+        Free-File-Sync -Source $SourcePath -Destination $FinalPath -SyncType Update -JustOpenApp
         Maybe-Exit
     }
 

@@ -225,7 +225,7 @@ function Free-File-Sync {
     }
     
     Process {
-        if ($PSCmdlet.ParameterSetName -eq 'BuildAJob' -or $JustOpenApp) {
+        if ($PSCmdlet.ParameterSetName -eq 'BuildAJob') {# -or $JustOpenApp) {
             return
         }
         
@@ -284,6 +284,9 @@ function Free-File-Sync {
                 $should_process_message = $should_process_message.Replace("->", "<->")
             }
             if ($PSCmdlet.ShouldProcess($should_process_message,"$SyncType Sync")) {
+                if ($JustOpenApp) {
+                    Start-Process $ffs -ArgumentList "`"$($job.jobPath)`" -Edit"
+                }
                 $_process = Start-Process $ffs -ArgumentList "`"$($job.jobPath)`"" -Wait -PassThru
             }
             else {
