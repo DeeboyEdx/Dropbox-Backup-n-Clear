@@ -96,7 +96,9 @@ function Free-File-Sync {
         }
         if ($JustOpenApp) {
             & $ffs
-            break
+            # IMPORTANT MEMO: This only end the BEGIN block.
+            # The PROCESS block will begin so I need to include -or $JustOpenApp in the first exit IF block
+            return
         }
         $logPath = "$env:APPDATA\FreeFileSync\Logs\"
         if (-not (Test-Path $logPath)) {
@@ -223,7 +225,7 @@ function Free-File-Sync {
     }
     
     Process {
-        if ($PSCmdlet.ParameterSetName -eq 'BuildAJob') {
+        if ($PSCmdlet.ParameterSetName -eq 'BuildAJob' -or $JustOpenApp) {
             return
         }
         

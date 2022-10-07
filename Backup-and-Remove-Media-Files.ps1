@@ -26,10 +26,13 @@ Begin {
     $MEDIA_FILE_TYPES = @('.jpg', '.gif', '.png', '.mp4', '.jpeg')
 
     function Maybe-Exit {
-        if ($DoNotCloseUponCompletion) {
-            while (1) {Read-Host | Out-Null}
+        Write-Verbose "`$DoNotCloseUponCompletion: $DoNotCloseUponCompletion" -Verbose
+        while ($DoNotCloseUponCompletion) {
+            Read-Host | Out-Null
+            Write-Verbose "Not closing" -Verbose
         }
-        exit
+        Write-Verbose 'exiting' -Verbose
+        # exit
     }
 
     function Test-Media-Files-Presence($path) {
@@ -346,9 +349,8 @@ End {
         Maybe-Exit
     }
 
-    # delete all the folders formatted like so.  YYYY-MM-DD
-    # Remove-Collated-Year-Folders -path $SourcePath
-    Write-Verbose "Remove Year function would've been called" -Verbose
+    # delete all the folders formatted like so.  YYYY
+    Remove-Collated-Year-Folders -path $SourcePath
 
     Write-Host
     Write-Host "Completed backups and cleared out source path '$SourcePath'" -ForegroundColor Black -BackgroundColor Green
