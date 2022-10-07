@@ -26,13 +26,10 @@ Begin {
     $MEDIA_FILE_TYPES = @('.jpg', '.gif', '.png', '.mp4', '.jpeg')
 
     function Maybe-Exit {
-        Write-Verbose "`$DoNotCloseUponCompletion: $DoNotCloseUponCompletion" -Verbose
         while ($DoNotCloseUponCompletion) {
             Read-Host | Out-Null
-            Write-Verbose "Not closing" -Verbose
         }
-        Write-Verbose 'exiting' -Verbose
-        # exit
+        exit
     }
 
     function Test-Media-Files-Presence($path) {
