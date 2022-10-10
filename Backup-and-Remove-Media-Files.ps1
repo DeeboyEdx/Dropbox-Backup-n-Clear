@@ -10,6 +10,7 @@ param (
     [Parameter(Mandatory=$true)]
     [string] $SourcePath = "$HOME\Dropbox\Camera Uploads",
     [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+    [Alias ('DestinationPath')]
     [string[]] $BackupPath,
     [Alias ('Threshold')]
     [Alias ('WaitUntil')]
@@ -32,8 +33,12 @@ Begin {
         exit
     }
 
+    function Get-Media-Files($path) {
+        return Get-ChildItem -Path $path -File | Where-Object Extension -in $MEDIA_FILE_TYPES
+    }
+
     function Test-Media-Files-Presence($path) {
-        return [bool] (Get-ChildItem -Path $path -File | Where-Object Extension -in $MEDIA_FILE_TYPES)
+        return [bool] (Get-Media-Files -path $path)
     }
 
     function Get-Collated-Media-Folders($path) {
@@ -141,12 +146,14 @@ Begin {
     # ensure Free-File-Sync function exists
     if (-not (Test-Path Function:\Free-File-Sync -ErrorAction SilentlyContinue)) {
         # attempt to load function
+        $ffs_name = "FreeFileSync-PS-Function.ps1"
+        $ffs_script_path = Join-Path $PSScriptRoot $ffs_name
         try {
-            . FreeFileSync-PS-Function.ps1
+            . $ffs_script_path
         }
         catch {
             Write-Host "Free-File-Sync function missing!" -ForegroundColor Red
-            Write-Host "Please ensure 'FreeFileSync-PS-Function.ps1' is in this script's same location..." 
+            Write-Host "Please ensure '$ffs_name' is in this script's same location..." 
             Write-Host "   $PSScriptRoot\" -ForegroundColor DarkGray
             Maybe-Exit
         }
@@ -224,10 +231,11 @@ Begin {
         }
     }
 
-    
-
     function Wait-Until-Bytes ($path, $threshold) {
         Begin {
+            if (-not $threshold) {
+                return
+            }
             function Format-Bytes {
                 Param
                 (
@@ -261,13 +269,13 @@ Begin {
             $sum = 0
             $s_len = 3 # length of "0 B"
             $limit = Format-Bytes -number $threshold
-            if (-not $threshold) {
-                Write-Host "Not waiting."
-                return
-            }
-            Write-Host "Waiting until '$path' reaches the threshold" -ForegroundColor Gray
+            Write-Host "Waiting until source path reaches the threshold." -ForegroundColor Gray
+            write-host "  $path" -ForegroundColor DarkGray
         }
         Process {
+            if (-not $threshold) {
+                return
+            }
             while( $sum -lt $threshold) {
                 $sum = Get-ChildItem -Path $path -Recurse | 
                     Measure-Object Length -Sum | 
@@ -277,9 +285,9 @@ Begin {
                 $s_len = $sentence.Length + 1
                 Start-Sleep 5
             }
+            Write-Host "  Reached.  Continuing..." -ForegroundColor DarkGreen
         }
         End {
-            Write-Host "  Reached.  Continuing..." -ForegroundColor DarkGreen
         }
     }
 
@@ -291,6 +299,7 @@ Begin {
     # TODO : Make sure this is working right
     Wait-Until-Bytes -path $SourcePath -threshold $StartThreshold
 
+    
     ###################################
     ### Preparing file by collating ###
     ###################################
