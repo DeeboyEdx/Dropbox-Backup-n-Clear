@@ -17,7 +17,8 @@ param (
     [int64]    $StartThreshold = 0,
     [string]   $FinalPath,
     [Alias ('NoClose')]
-    [switch]   $DoNotCloseUponCompletion
+    [switch]   $DoNotCloseUponCompletion,
+    [switch]   $PerpetualRepeat
 )
 
 Begin {
@@ -26,8 +27,20 @@ Begin {
     ############################################
     $MEDIA_FILE_TYPES = @('.jpg', '.gif', '.png', '.mp4', '.jpeg')
 
-    function Maybe-Exit {
+    function Maybe-Exit ([switch] $Loop, [switch] $ConfirmRepeatIntent) {
+        if ($Loop) {
+            # call self recursively
+            Write-Verbose 'Recursive call'
+            if ($ConfirmRepeatIntent -and (Read-Host "Restart script?") -like 'n*') {
+                # This is intended to end the entire execution / process
+                break
+            }
+            Write-Host "`nRestarting sync script" -BackgroundColor DarkGray -ForegroundColor White
+            Start-Sleep 5
+            Backup-and-Remove-Media-Files.ps1 -SourcePath $SourcePath -BackupPath $BackupPath -StartThreshold $StartThreshold -DoNotCloseUponCompletion:$DoNotCloseUponCompletion -PerpetualRepeat:$PerpetualRepeat
+        }
         while ($DoNotCloseUponCompletion) {
+            Write-Host '.' -NoNewline
             Read-Host | Out-Null
         }
         exit
@@ -53,7 +66,7 @@ Begin {
         return [bool] (Get-Collated-Media-Folders -path $path) -or (Get-Collated-Year-Folders -path $path)
     }
 
-    function Format-Collate-Media-Files--Successfully($path) {
+    function Format-Collate-Media-Files-Successfully($path) {
         # verify collate batch file is present
         $batch_file_full_path = "$PSScriptRoot\collate v3.bat"
         if (-not (Test-Path $batch_file_full_path)){
@@ -307,17 +320,22 @@ Begin {
     # check for presence of un-foldered / un-collated media files
     if ( (Test-Media-Files-Presence -path $SourcePath) -or (Get-Collated-Media-Folders -path $SourcePath) ) {
         # run the collate batch file
-        if (-not (Format-Collate-Media-Files--Successfully -path $SourcePath)) {
+        if (-not (Format-Collate-Media-Files-Successfully -path $SourcePath)) {
             Write-Host "Exiting" -ForegroundColor Red
-            Maybe-Exit
+            Maybe-Exit -Loop:$PerpetualRepeat
         }
     }
 
     # check for presence of media folders
     if (-not (Test-Collated-Media-Folders-Presence -path $SourcePath)) {
         Write-Host "No media folders found in source path.  Nothing to do here.  Bye" -ForegroundColor Gray
-        Maybe-Exit
+        Maybe-Exit -Loop:$PerpetualRepeat
     }
+
+    if ($PerpetualRepeat -and $FinalPath) {
+        Write-Warning "Note that FinalPath will not be synced to when -PerpetualRepeat argument is used."
+    }
+
     Write-Host
 }
 
@@ -332,12 +350,13 @@ Process {
 
         # run sync to backup destination
         if (-not (Sync-Files-Successfully -source $SourcePath -destination $SyncDestPath)) {
-            Write-Host 'Sync to backup destination failed' -ForegroundColor Red
+            Write-Host 'Sync to backup destination did not complete successfully' -ForegroundColor Red
             Read-Host | Out-Null
             Write-Host "Opening FreeFileSync for manual resolution" -ForegroundColor DarkGray
             # consider figuring out how to (if possible) have it open with src & dest pre-filled in
             Free-File-Sync -Source $SourcePath -Destination $BackupPath -SyncType Update -JustOpenApp
-            Maybe-Exit
+            Write-Verbose "`$PerpetualRepeat: $PerpetualRepeat"
+            Maybe-Exit -ConfirmRepeatIntent -Loop:$PerpetualRepeat
             # this needs to be 'exit' instead of 'return' so the entire script stops and the END block doesn't run
         }
     }
@@ -349,11 +368,11 @@ Process {
 End {
     # run sync to final destination
     if ($FinalPath -and -not (Sync-Files-Successfully -source $SourcePath -destination $FinalPath)) {
-        Write-Host 'Sync to final destination failed' -ForegroundColor Red
+        Write-Host 'Sync to final destination did not complete successfully' -ForegroundColor Red
         Read-Host | Out-Null
         Write-Host "Opening FreeFileSync for manual resolution" -ForegroundColor DarkGray
         Free-File-Sync -Source $SourcePath -Destination $FinalPath -SyncType Update -JustOpenApp
-        Maybe-Exit
+        Maybe-Exit -ConfirmRepeatIntent -Loop:$PerpetualRepeat
     }
 
     # delete all the folders formatted like so.  YYYY
@@ -362,7 +381,7 @@ End {
     Write-Host
     Write-Host "Completed backups and cleared out source path '$SourcePath'" -ForegroundColor Black -BackgroundColor Green
 
-    Maybe-Exit
+    Maybe-Exit -Loop:$PerpetualRepeat
 }
 
 # tell Eg when this is done
