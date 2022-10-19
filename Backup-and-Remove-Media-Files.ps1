@@ -33,14 +33,13 @@ Begin {
             Write-Verbose 'Recursive call'
             if ($ConfirmRepeatIntent -and (Read-Host "Restart script?") -like 'n*') {
                 # This is intended to end the entire execution / process
-                break
+                exit
             }
             Write-Host "`nRestarting sync script" -BackgroundColor DarkGray -ForegroundColor White
             Start-Sleep 5
             Backup-and-Remove-Media-Files.ps1 -SourcePath $SourcePath -BackupPath $BackupPath -StartThreshold $StartThreshold -DoNotCloseUponCompletion:$DoNotCloseUponCompletion -PerpetualRepeat:$PerpetualRepeat
         }
         while ($DoNotCloseUponCompletion) {
-            Write-Host '.' -NoNewline
             Read-Host | Out-Null
         }
         exit
@@ -351,7 +350,7 @@ Process {
         # run sync to backup destination
         if (-not (Sync-Files-Successfully -source $SourcePath -destination $SyncDestPath)) {
             Write-Host 'Sync to backup destination did not complete successfully' -ForegroundColor Red
-            Read-Host | Out-Null
+            #Read-Host | Out-Null # not waiting for user to hit Enter anymore
             Write-Host "Opening FreeFileSync for manual resolution" -ForegroundColor DarkGray
             # consider figuring out how to (if possible) have it open with src & dest pre-filled in
             Free-File-Sync -Source $SourcePath -Destination $BackupPath -SyncType Update -JustOpenApp
