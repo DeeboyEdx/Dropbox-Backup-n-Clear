@@ -18,7 +18,8 @@ param (
     [string]   $FinalPath,
     [Alias ('NoClose')]
     [switch]   $DoNotCloseUponCompletion,
-    [switch]   $PerpetualRepeat
+    [switch]   $PerpetualRepeat,
+    [switch]   $NoDelete
 )
 
 Begin {
@@ -374,11 +375,16 @@ End {
         Maybe-Exit -ConfirmRepeatIntent -Loop:$PerpetualRepeat
     }
 
-    # delete all the folders formatted like so.  YYYY
-    Remove-Collated-Year-Folders -path $SourcePath
+    $additional_message = ''
+
+    if (-not $NoDelete) {
+        # delete all the folders formatted like so.  YYYY
+        Remove-Collated-Year-Folders -path $SourcePath
+        $additional_message = "and cleared out source path '$SourcePath'"
+    }
 
     Write-Host
-    Write-Host "Completed backups and cleared out source path '$SourcePath'" -ForegroundColor Black -BackgroundColor Green
+    Write-Host "Completed backups $additional_message" -ForegroundColor Black -BackgroundColor Green
 
     Maybe-Exit -Loop:$PerpetualRepeat
 }
