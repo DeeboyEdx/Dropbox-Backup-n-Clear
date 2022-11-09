@@ -18,15 +18,14 @@ param (
     [string]   $FinalPath,
     [Alias ('NoClose')]
     [switch]   $DoNotCloseUponCompletion,
-    [switch]   $PerpetualRepeat,
-    [switch]   $NoDelete
+    [switch]   $PerpetualRepeat
 )
 
 Begin {
     ############################################
     ### Initializing variables and functions ###
     ############################################
-    $MEDIA_FILE_TYPES = @('.jpg', '.gif', '.png', '.mp4', '.jpeg')
+    $MEDIA_FILE_TYPES = @('.jpg', '.gif', '.png', '.mp4', '.jpeg', '.mov', '.mpg', '.mpeg', '*.heic')
 
     function Maybe-Exit ([switch] $Loop, [switch] $ConfirmRepeatIntent) {
         if ($Loop) {
@@ -375,16 +374,11 @@ End {
         Maybe-Exit -ConfirmRepeatIntent -Loop:$PerpetualRepeat
     }
 
-    $additional_message = ''
-
-    if (-not $NoDelete) {
-        # delete all the folders formatted like so.  YYYY
-        Remove-Collated-Year-Folders -path $SourcePath
-        $additional_message = "and cleared out source path '$SourcePath'"
-    }
+    # delete all the folders formatted like so.  YYYY
+    Remove-Collated-Year-Folders -path $SourcePath
 
     Write-Host
-    Write-Host "Completed backups $additional_message" -ForegroundColor Black -BackgroundColor Green
+    Write-Host "Completed backups and cleared out source path '$SourcePath'" -ForegroundColor Black -BackgroundColor Green
 
     Maybe-Exit -Loop:$PerpetualRepeat
 }

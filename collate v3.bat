@@ -25,7 +25,7 @@ rem without needing to feed it a file list
 rem which ultimately makes my original batch irrelevant ¬_¬
 if "%~sn1" == "" (
 	rem creates a file with the list of media files in directory
-	for %%X in (*.jpg *.gif *.png *.mp4 *.jpeg) do (echo %%X >> tmp.txt)
+	for %%X in (*.jpg *.gif *.png *.mp4 *.jpeg *.mov *.mpg *.mpeg *.heic) do (echo %%X >> tmp.txt)
 	
 	rem creates folder and moves files into corresponding folder
 	for /f "tokens=1,2*" %%Y in (tmp.txt) do (
