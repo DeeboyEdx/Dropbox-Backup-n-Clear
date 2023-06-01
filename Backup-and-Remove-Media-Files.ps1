@@ -18,7 +18,8 @@ param (
     [string]   $FinalPath,
     [Alias ('NoClose')]
     [switch]   $DoNotCloseUponCompletion,
-    [switch]   $PerpetualRepeat
+    [switch]   $PerpetualRepeat,
+    [int]      $DelaySync
 )
 
 Begin {
@@ -36,8 +37,8 @@ Begin {
                 exit
             }
             Write-Host "`nRestarting sync script" -BackgroundColor DarkGray -ForegroundColor White
-            Start-Sleep 5
-            Backup-and-Remove-Media-Files.ps1 -SourcePath $SourcePath -BackupPath $BackupPath -StartThreshold $StartThreshold -DoNotCloseUponCompletion:$DoNotCloseUponCompletion -PerpetualRepeat:$PerpetualRepeat
+            Start-Sleep 3
+            Backup-and-Remove-Media-Files.ps1 -SourcePath $SourcePath -BackupPath $BackupPath -StartThreshold $StartThreshold -DoNotCloseUponCompletion:$DoNotCloseUponCompletion -PerpetualRepeat:$PerpetualRepeat -DelaySync $DelaySync
         }
         while ($DoNotCloseUponCompletion) {
             Read-Host | Out-Null
@@ -46,7 +47,30 @@ Begin {
     }
 
     function Get-Media-Files($path) {
-        return Get-ChildItem -Path $path -File | Where-Object Extension -in $MEDIA_FILE_TYPES
+        $list = Get-ChildItem -Path $path -File | Where-Object Extension -in $MEDIA_FILE_TYPES
+        if ($WrongFileNames = $list.Where({$_.BaseName -notmatch '^\d{4}-\d{2}-\d{2}\s\d{2}\.\d{2}\.\d{2}'}) ) {
+            $fileOrFiles = if (($count = $WrongFileNames.Count) -eq 1) {"file does"}
+            else {"files do"}
+            Write-Warning "$count $fileOrFiles not have the expected naming convention.  For example: $($WrongFileNames.Name | Select-Object -First 1)"
+
+            if ((Read-Host "Convert file names to conventional 'YYYY-MM-DD HH.MM.SS' format?").Trim() -like 'y*') {
+                try {
+                    Get-ChildItem $WrongFileNames | ForEach-Object {Rename-Item $_.name "$($_.LastWriteTime.ToString("yyyy-MM-dd HH.mm.ss") + $_.Extension)" -ErrorAction Stop}
+                }
+                catch {
+                    Write-Error "An error occurred while attempting to rename files: $_"
+                }
+                return Get-Media-Files -path $path
+            }
+            else {
+                $seconds = 5
+                Write-Host "WARNING: These files will be ignored causing un-collated files to be synced.  Continuing in $seconds seconds" -ForegroundColor Yellow -NoNewline
+                (1..$seconds).ForEach({Write-Host "." -ForegroundColor Yellow -NoNewline; Start-Sleep -Seconds 1})
+                Write-Host "." -ForegroundColor Yellow
+                # return $list.Where({$_.Name -notin $WrongFileNames.Name}) # don't need to filter. This function should return all media files.
+            }
+        }
+        return $list.Where({Test-Path $_ -ErrorAction SilentlyContinue})
     }
 
     function Test-Media-Files-Presence($path) {
@@ -92,11 +116,14 @@ Begin {
         # because batch file executes in working DIR, not batch's didr
         Push-Location $path
 
+        # Adding custom delay to process cuz DropBox likes to fudge it's own 2GB limit sometimes
+        Start-Sleep -Seconds $DelaySync
+
         # execute batch file
         $process = Start-Process $batch_file_full_path -Wait -PassThru
 
         # Buffering move to media folders from move to year folders
-        Start-Sleep -Seconds 5
+        Start-Sleep -Seconds 2
 
         try {
             # Create year folders
@@ -122,7 +149,7 @@ Begin {
                     while ($pending_folders = Get-Collated-Media-Folders -path $path | Where-Object {$_.Name -like "$year*"}) {
                         # Buffering action
                         Start-Sleep -Seconds 5
-                        Write-Verbose "Moving $($pending_folders.Count) $year* folder(s) to $year_path" -Verbose
+                        Write-Verbose "Moving $($pending_folders.Count) $year* folder(s) to $year_path"
                         $pending_folders | Move-Item -Destination $year_path -ErrorAction SilentlyContinue
                     }
                 }
@@ -232,7 +259,7 @@ Begin {
         }
         catch {
             if ($attempts -gt 0) {
-                Write-Verbose "Re-attempting to remove $($pending_year_folders.Count) Year folder(s)" -Verbose
+                Write-Verbose "Re-attempting to remove $($pending_year_folders.Count) Year folder(s)"
                 Start-Sleep -Seconds 2
                 Remove-Collated-Year-Folders -path $path -attempts ($attempts - 1)
             }
