@@ -46,6 +46,61 @@ Begin {
         exit
     }
 
+    function Get-MediaCreationTime {
+        param (
+            [Parameter(Mandatory=$true)]
+            [System.IO.FileSystemInfo]
+            $file
+        )
+        $shellObject = New-Object -ComObject Shell.Application
+        $directoryObject = $shellObject.NameSpace( $file.Directory.FullName )
+        $fileObject = $directoryObject.ParseName( $file.Name )
+
+        $property = switch ($file.Extension) {
+            {$_ -in @('.jpg', '.gif', '.png')} {'Date taken'}
+            default {'Media created'}
+        }
+        for(
+        $index = 5;
+        $directoryObject.GetDetailsOf( $directoryObject.Items, $index ) -ne $property;
+        ++$index ) { }
+
+        $value = $directoryObject.GetDetailsOf( $fileObject, $index )
+        if ($value) {
+            return [DateTime]($value -replace "[\p{C}]", "")
+        }
+        return $file.LastWriteTime
+    }
+
+    function Rename-FilesToDateTimeFormat {
+        param (
+            [Parameter(Mandatory=$true)]
+            [System.IO.FileSystemInfo[]]
+            $WrongFileNames
+        )
+    
+        $dateFormat = "yyyy-MM-dd HH.mm.ss"
+        
+        foreach ($file in $WrongFileNames.Where({$_ -is [System.IO.FileInfo]})) {
+            $dateTimeName = (Get-MediaCreationTime $file).ToString($dateFormat)
+            $newName = $dateTimeName + $file.Extension
+            $newPath = Join-Path -Path $file.DirectoryName -ChildPath $newName
+            
+            $counter = 1
+            while (Test-Path $newPath) {
+                $newName = "{0}-{1}{2}" -f $dateTimeName, $counter, $file.Extension
+                $newPath = Join-Path -Path $file.DirectoryName -ChildPath $newName
+                $counter++
+            }
+            
+            if ($file.Name -ne $newName) {
+                Rename-Item -Path $file.FullName -NewName $newName
+                Write-Output "Renamed $($file.Name) to $newName"
+            }
+        }
+    }
+    
+
     function Get-Media-Files($path) {
         $list = Get-ChildItem -Path $path -File | Where-Object Extension -in $MEDIA_FILE_TYPES
         if ($WrongFileNames = $list.Where({$_.BaseName -notmatch '^\d{4}-\d{2}-\d{2}\s\d{2}\.\d{2}\.\d{2}'}) ) {
@@ -55,7 +110,7 @@ Begin {
 
             if ((Read-Host "Convert file names to conventional 'YYYY-MM-DD HH.MM.SS' format?").Trim() -like 'y*') {
                 try {
-                    Get-ChildItem $WrongFileNames | ForEach-Object {Rename-Item $_.name "$($_.LastWriteTime.ToString("yyyy-MM-dd HH.mm.ss") + $_.Extension)" -ErrorAction Stop}
+                    Rename-FilesToDateTimeFormat $WrongFileNames
                 }
                 catch {
                     Write-Error "An error occurred while attempting to rename files: $_"
