@@ -26,7 +26,6 @@ Begin {
     ############################################
     ### Initializing variables and functions ###
     ############################################
-    $MEDIA_FILE_TYPES = @('.jpg', '.gif', '.png', '.mp4', '.jpeg', '.mov', '.mpg', '.mpeg', '*.heic')
 
     function Maybe-Exit ([switch] $Loop, [switch] $ConfirmRepeatIntent) {
         if ($Loop) {
@@ -45,13 +44,21 @@ Begin {
         }
         exit
     }
-
+    
     function Get-MediaCreationTime {
         param (
-            [Parameter(Mandatory=$true)]
+            [Parameter(Mandatory=$true, ParameterSetName='file', Position=0)]
             [System.IO.FileSystemInfo]
-            $file
+            $file,
+            [Parameter(Mandatory=$true, ParameterSetName='string', Position=0)]
+            [string]
+            $filePath
         )
+        
+        # Convert input to FileSystemInfo if it's a string
+        if ($filePath) {
+            $file = Get-Item $filePath
+        }
         $shellObject = New-Object -ComObject Shell.Application
         $directoryObject = $shellObject.NameSpace( $file.Directory.FullName )
         $fileObject = $directoryObject.ParseName( $file.Name )
@@ -99,7 +106,8 @@ Begin {
             }
         }
     }
-    
+
+    $MEDIA_FILE_TYPES = @('.jpg', '.gif', '.png', '.mp4', '.jpeg', '.mov', '.mpg', '.mpeg', '*.heic')
 
     function Get-Media-Files($path) {
         $list = Get-ChildItem -Path $path -File | Where-Object Extension -in $MEDIA_FILE_TYPES
