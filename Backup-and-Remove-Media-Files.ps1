@@ -3,23 +3,30 @@
 # This is the format Dropbox puts onto computers.
 # 
 
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName='Sync')]
 param (
     # this whole SourcePath parameter might be unnecessary if I'm just continuing with the batch file's assumption
     # that the files i'll be collating are in the same folder as the batch file
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$true, ParameterSetName='Sync')]
     [string] $SourcePath = "$HOME\Dropbox\Camera Uploads",
-    [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+    [Parameter(Mandatory=$true, ValueFromPipeline=$true, ParameterSetName='Sync')]
     [Alias ('DestinationPath')]
     [string[]] $BackupPath,
+    [Parameter(ParameterSetName='Sync')]
     [Alias ('Threshold')]
     [Alias ('WaitUntil')]
     [int64]    $StartThreshold = 0,
+    [Parameter(ParameterSetName='Sync')]
     [string]   $FinalPath,
     [Alias ('NoClose')]
+    [Parameter(ParameterSetName='Sync')]
     [switch]   $DoNotCloseUponCompletion,
+    [Parameter(ParameterSetName='Sync')]
     [switch]   $PerpetualRepeat,
-    [int]      $DelaySync
+    [Parameter(ParameterSetName='Sync')]
+    [int]      $DelaySync,
+    [Parameter(ParameterSetName='LoadFunctionsOnly')]
+    [switch]   $JustLoadInternalFunctions
 )
 
 Begin {
@@ -45,6 +52,7 @@ Begin {
         exit
     }
     
+
     function Get-MediaCreationTime {
         param (
             [Parameter(Mandatory=$true, ParameterSetName='file', Position=0)]
@@ -133,7 +141,7 @@ Begin {
                 # return $list.Where({$_.Name -notin $WrongFileNames.Name}) # don't need to filter. This function should return all media files.
             }
         }
-        return $list.Where({Test-Path $_ -ErrorAction SilentlyContinue})
+        return $list.Where({Test-Path $_.FullName -ErrorAction SilentlyContinue})
     }
 
     function Test-Media-Files-Presence($path) {
@@ -259,6 +267,15 @@ Begin {
             Write-Host "   $PSScriptRoot\" -ForegroundColor DarkGray
             Maybe-Exit
         }
+    }
+
+    if ($JustLoadInternalFunctions) {
+        if ($MyInvocation.InvocationName -eq '.') {
+            Write-Host "Internal functions have been loaded."
+        } else {
+            Write-Warning "Make sure you're dot-sourcing this script if you're using the -JustLoadInternalFunctions switch."
+        }
+        Exit 0
     }
 
     function Sync-Files-Successfully ($source, $destination) {
