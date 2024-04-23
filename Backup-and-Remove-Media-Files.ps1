@@ -115,7 +115,7 @@ Begin {
         }
     }
 
-    $MEDIA_FILE_TYPES = @('.jpg', '.gif', '.png', '.mp4', '.jpeg', '.mov', '.mpg', '.mpeg', '*.heic')
+    $MEDIA_FILE_TYPES = @('.jpg', '.gif', '.png', '.mp4', '.jpeg', '.mov', '.mpg', '.mpeg', '*.heic', '.webp')
 
     function Get-Media-Files($path) {
         $list = Get-ChildItem -Path $path -File | Where-Object Extension -in $MEDIA_FILE_TYPES
