@@ -1,7 +1,93 @@
-# This collection of scripts makes a key presumption that...
-# The media files being worked on are of 'YYYY-MM-DD HH.MM.SS.xyz' format
-# This is the format Dropbox puts onto computers.
-# 
+<#
+.SYNOPSIS
+    Backs up and removes media files from a source directory (typically Dropbox Camera Uploads) to one or more backup destinations.
+
+.DESCRIPTION
+    This script automates the process of organizing, backing up, and removing media files from a source directory.
+    It is designed to work with media files in the 'YYYY-MM-DD HH.MM.SS.xyz' naming format (as created by Dropbox).
+    
+    The script performs the following operations:
+    1. Optionally waits until the source directory reaches a specified size threshold
+    2. Renames media files to the standard datetime format if needed
+    3. Collates (organizes) media files into date-based folders (YYYY-MM-DD) using an external batch file
+    4. Further organizes date folders into year folders (YYYY)
+    5. Syncs the organized folders to one or more backup destinations using FreeFileSync
+    6. Removes the backed-up folders from the source directory after successful sync
+    
+    The script requires:
+    - 'collate v3.bat' batch file in the same directory as this script
+    - 'FreeFileSync-PS-Function.ps1' PowerShell script in the same directory
+    
+    Supported media file types: .jpg, .gif, .png, .mp4, .jpeg, .mov, .mpg, .mpeg, .heic
+
+.PARAMETER SourcePath
+    The source directory containing media files to be organized and backed up.
+    Default: "$HOME\Dropbox\Camera Uploads"
+
+.PARAMETER BackupPath
+    One or more destination paths where the organized media folders will be synced.
+    Can accept pipeline input. Multiple paths can be specified.
+    Alias: DestinationPath
+
+.PARAMETER StartThreshold
+    Optional file size threshold (in bytes) that the source directory must reach before processing begins.
+    The script will wait until this threshold is met. Set to 0 to process immediately.
+    Aliases: Threshold, WaitUntil
+    Default: 0
+
+.PARAMETER FinalPath
+    Optional additional destination path for a final sync operation after all BackupPath syncs complete.
+    Note: Not used when -PerpetualRepeat is enabled.
+
+.PARAMETER DoNotCloseUponCompletion
+    If specified, keeps the console window open after completion, waiting for user review and input to close/continue.
+    Alias: NoClose
+
+.PARAMETER PerpetualRepeat
+    If specified, the script will continuously loop, restarting after each completion.
+    Useful for automated continuous monitoring and syncing.
+
+.PARAMETER DelaySync
+    Optional delay (in seconds) before executing the collate batch file.
+    Useful when Dropbox is still processing uploads.
+
+.PARAMETER JustLoadInternalFunctions
+    Loads only the internal functions defined in this script without executing the main logic.
+    Must be used with dot-sourcing: . .\Backup-and-Remove-Media-Files.ps1 -JustLoadInternalFunctions
+
+.EXAMPLE
+    .\Backup-and-Remove-Media-Files.ps1 -BackupPath "E:\PhotoBackup"
+    
+    Backs up media files from the default Dropbox Camera Uploads folder to E:\PhotoBackup.
+
+.EXAMPLE
+    .\Backup-and-Remove-Media-Files.ps1 -SourcePath "C:\Photos" -BackupPath "D:\Backup1", "E:\Backup2"
+    
+    Backs up media files from C:\Photos to both D:\Backup1 and E:\Backup2.
+
+.EXAMPLE
+    .\Backup-and-Remove-Media-Files.ps1 -BackupPath "E:\Backup" -StartThreshold 2GB -PerpetualRepeat
+    
+    Waits until source directory reaches 2GB, then backs up files. Repeats continuously.
+
+.EXAMPLE
+    "D:\Backup1", "E:\Backup2" | .\Backup-and-Remove-Media-Files.ps1
+    
+    Uses pipeline input to specify multiple backup destinations.
+
+.NOTES
+    Author: Diego Reategui
+    Prerequisites:
+    - collate v3.bat must be in the same directory as this script
+    - FreeFileSync-PS-Function.ps1 must be in the same directory as this script
+    - FreeFileSync application must be installed
+    
+    Key Presumption: Media files should follow the 'YYYY-MM-DD HH.MM.SS.xyz' naming format.
+    Files not matching this format will trigger a rename prompt.
+
+.LINK
+    https://freefilesync.org/
+#>
 
 [CmdletBinding(DefaultParameterSetName='Sync')]
 param (
